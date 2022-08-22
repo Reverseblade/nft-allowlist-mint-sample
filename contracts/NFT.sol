@@ -14,6 +14,10 @@ contract NFT is ERC721, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     bytes32 merkleRoot;
+    bool isPreSaleActive = false;
+    bool isPublicSaleActive = false;
+    mapping(address => bool) isAllowlistClaimed;
+    mapping(address => bool) allowlist;
 
     constructor() ERC721("NFT", "NFT") {
         mintNFT();
@@ -27,17 +31,35 @@ contract NFT is ERC721, Ownable {
         _tokenIds.increment();
     }
 
-    function allowlistMint(bytes32[] memory proof) public returns(bool){
+    function allowlistMint(bytes32[] memory proof) public {
         //require(keccak256(abi.encodePacked(msg.sender)) == leaf, "You are not in allowlist");
-        require(isAllowlisted(proof, keccak256(abi.encodePacked(msg.sender))), "You are not in allowlist");
+        //require(isPresaleActive, "Presale has not been started");
+        require(MerkleProof.verify(proof, merkleRoot, keccak256(abi.encodePacked(msg.sender))), "You are not on the allowlist");
+        require(isAllowlistClaimed[msg.sender] != true, "Allowlist calimed");
         mintNFT();
+        isAllowlistClaimed[msg.sender] = true;
+    }
+
+    function allowlistMint2() public {
+        //require(isPresaleActive, "Presale has not been started");
+        require(allowlist[msg.sender] == true, "You are not on the allowlist");
+        require(isAllowlistClaimed[msg.sender] != true, "Allowlist calimed");
+        mintNFT();
+        isAllowlistClaimed[msg.sender] = true;
     }
 
     function setMerkleRoot(bytes32 _root) external onlyOwner {
         merkleRoot = _root;
     }
 
-    function isAllowlisted(bytes32[] memory proof, bytes32 leaf) public returns(bool) {
+    function setAllowlist(address[] calldata addresses) external onlyOwner {
+        for(uint256 i = 0; i < addresses.length; i++) {
+            require(addresses[i] != address(0), "Cannot add the null address");
+            allowlist[addresses[i]] = true;
+        }
+    }
+
+    function isAllowlist(bytes32[] memory proof, bytes32 leaf) public returns(bool) {
         return MerkleProof.verify(proof, merkleRoot, leaf);
     }
 }

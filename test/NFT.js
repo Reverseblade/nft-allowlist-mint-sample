@@ -22,25 +22,34 @@ describe("NFT Contract", function () {
   });
 
   it("Allowlist Mint", async function() {
-    // handle merkle tree
+    // HANDLE MERKLE TREE
     const { MerkleTree } = require('merkletreejs');
     const keccak256 = require('keccak256')
-
-    const leaves = [owner.address, addr1.address].map(x => keccak256(x));
+    let addresses = await ethers.getSigners();
+    addresses = addresses.slice(3).map(x => x.address);
+    console.log(addresses);
+    const signerAddresses = [owner.address, addr1.address, addr2.address]
+    for (i = 0; i < 1; i++) {
+        addresses = addresses.concat(signerAddresses);
+    }
+    console.log(addresses.length)
+    console.log(addresses)
+    const leaves = addresses.map(x => keccak256(x));
     const tree = new MerkleTree(leaves, keccak256, {sortPairs: true});
     const buf2hex = x => "0x" + x.toString('hex'); 
     const root = buf2hex(tree.getRoot());
-    //console.log(root);
 
+    // UPLOAD ALLOWLIST
     await hardhatMyNFT.setMerkleRoot(root);
+    await hardhatMyNFT.setAllowlist(addresses, { gasLimit: 300000000000 });
 
-    //const ownerLeaf = buf2hex(keccak256(owner.address));
+    // MINT
     const ownerProof = tree.getProof(keccak256(owner.address)).map(x => buf2hex(x.data));
-    //console.log(ownerProof);
+    //const ownerLeaf = buf2hex(keccak256(owner.address));
     //console.log(ownerLeaf);
-
-    // mint
     await hardhatMyNFT.allowlistMint(ownerProof);
     expect(await hardhatMyNFT.ownerOf(1)).to.equal(owner.address);
+    await hardhatMyNFT.connect(addr1).allowlistMint2();
+    expect(await hardhatMyNFT.ownerOf(2)).to.equal(addr1.address);
   });
 });
